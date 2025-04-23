@@ -1,28 +1,26 @@
-#include"data_segment.h"
-#include<stdlib.h>
-#include<string.h>
-#include<iostream>
-#include<string>
+#include "data_segment.h"
+#include <stdlib.h>
+#include <string.h>
+#include <iostream>
+#include <string>
 
-namespace safe_udp{
-
-DataSegment::DataSegment(){
-    ack_number_ = -1;
-    seq_number_ = -1;
-    length_ = -1;
+namespace safe_udp {
+DataSegment::DataSegment() {
+  ack_number_ = -1;
+  seq_number_ = -1;
+  length_ = -1;
 }
 
-//将整个用户定义的1476字节的数据赋值给final_packet_
-char *DataSegment::SerializeToCharArray(){
-    if(final_packet_!=NULL){
-        memset(final_packet_,0,MAX_PACKET_SIZE);
-    }else{
-        //reinterpret_cast 是 C++ 中的一种强制类型转换操作符
-        final_packet_ = reinterpret_cast<char*>(calloc(MAX_PACKET_SIZE,sizeof(char)));
-        if(final_packet_ == NULL){
-            return NULL;
-        }
+char *DataSegment::SerializeToCharArray() {
+  if (final_packet_ != nullptr) {
+    memset(final_packet_, 0, MAX_PACKET_SIZE);
+  } else {
+    final_packet_ =
+        reinterpret_cast<char *>(calloc(MAX_PACKET_SIZE, sizeof(char)));
+    if (final_packet_ == nullptr) {
+      return nullptr;
     }
+  }
 
   memcpy(final_packet_, &seq_number_, sizeof(seq_number_));
 
@@ -35,11 +33,9 @@ char *DataSegment::SerializeToCharArray(){
   memcpy((final_packet_ + 10), &length_, sizeof(length_));
 
   memcpy((final_packet_ + 12), data_, length_);
-
   return final_packet_;
 }
 
-//length是data的长度
 void DataSegment::DeserializeToDataSegment(unsigned char *data_segment,
                                            int length) {
   seq_number_ = convert_to_uint32(data_segment, 0);
@@ -56,15 +52,14 @@ void DataSegment::DeserializeToDataSegment(unsigned char *data_segment,
   *(data_ + length) = '\0';
 }
 
-//这个函数的目的是从指定位置以小端字节序提取4个字节
-uint32_t DataSegment::convert_to_uint32(unsigned char *buffer,int start_index){
-    uint32_t uint32_value = 
-       (buffer[start_index + 3] << 24) | (buffer[start_index + 2] << 16) |
-       (buffer[start_index + 1] << 8) | (buffer[start_index]);
-    return uint32_value;
+uint32_t DataSegment::convert_to_uint32(unsigned char *buffer,
+                                        int start_index) {
+  uint32_t uint32_value =
+      (buffer[start_index + 3] << 24) | (buffer[start_index + 2] << 16) |
+      (buffer[start_index + 1] << 8) | (buffer[start_index]);
+  return uint32_value;
 }
 
-//这个函数的目的是从指定位置以小端字节序提取2个字节
 uint16_t DataSegment::convert_to_uint16(unsigned char *buffer,
                                         int start_index) {
   uint16_t uint16_value =
@@ -72,9 +67,8 @@ uint16_t DataSegment::convert_to_uint16(unsigned char *buffer,
   return uint16_value;
 }
 
-//这个函数的目的是从指定位置以小端字节序提取1个字节
 bool DataSegment::convert_to_bool(unsigned char *buffer, int index) {
   bool bool_value = buffer[index];
   return bool_value;
 }
-}
+}  // namespace safe_udp
