@@ -10,7 +10,7 @@ SlidingWindow::SlidingWindow() {
 
 SlidingWindow::~SlidingWindow() {}
 
-int SlidingWindow::AddToBuffer(const SlidWinBuffer& buffer) {
+int SlidingWindow::AddToBuffer(const ChainBufferType& buffer) {
   sliding_window_buffers_.push_back(buffer);
   return (sliding_window_buffers_.size() - 1);
 }

@@ -8,6 +8,9 @@ constexpr int MAX_PACKET_SIZE = 1472;
 constexpr int MAX_DATA_SIZE = 1460;
 constexpr int HEADER_LENGTH = 12;
 
+// 声明 get_buffer_len 函数
+uint32_t get_buffer_len(const char* buffer);
+
 class DataSegment {
  public:
   DataSegment();

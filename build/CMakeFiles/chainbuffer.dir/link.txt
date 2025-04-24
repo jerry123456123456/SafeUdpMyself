@@ -1,0 +1,2 @@
+/usr/bin/ar qc libchainbuffer.a CMakeFiles/chainbuffer.dir/chainbuffer/chain_buffer.c.o
+/usr/bin/ranlib libchainbuffer.a

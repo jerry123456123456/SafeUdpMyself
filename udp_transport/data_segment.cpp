@@ -5,6 +5,14 @@
 #include <string>
 
 namespace safe_udp {
+// 实现 get_buffer_len 函数
+uint32_t get_buffer_len(const char* buffer) {
+    if (buffer == nullptr) {
+        return 0;
+    }
+    return strlen(buffer);
+}
+
 DataSegment::DataSegment() {
   ack_number_ = -1;
   seq_number_ = -1;
@@ -32,7 +40,9 @@ char *DataSegment::SerializeToCharArray() {
 
   memcpy((final_packet_ + 10), &length_, sizeof(length_));
 
-  memcpy((final_packet_ + 12), data_, length_);
+  // 使用 get_buffer_len 函数获取长度
+  uint32_t buffer_len = get_buffer_len(data_);
+  memcpy((final_packet_ + 12), data_, buffer_len);
   return final_packet_;
 }
 

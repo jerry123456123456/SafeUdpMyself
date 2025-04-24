@@ -1,5 +1,7 @@
 // g++ -o tcp_server tcp_server.cpp -lglog
 
+// ./tcp_server 8081 /work/files/server_files/天龙八部.txt
+
 #include <iostream>
 #include <fstream>
 #include <cstring>

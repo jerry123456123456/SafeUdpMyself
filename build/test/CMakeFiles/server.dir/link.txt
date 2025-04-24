@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -g -rdynamic CMakeFiles/server.dir/server.cpp.o -o server  -Wl,-rpath,/root/work/SafeUdp/SafeUdpMyself/build/udp_transport: ../udp_transport/libudp_transport.so 

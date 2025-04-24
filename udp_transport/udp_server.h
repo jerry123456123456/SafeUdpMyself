@@ -10,6 +10,7 @@
 #include "data_segment.h"
 #include "packet_statistics.h"
 #include "sliding_window.h"
+#include "chain_buffer.h"  // 引入 chainbuffer 头文件
 
 namespace safe_udp {
 class UdpServer {
@@ -17,14 +18,6 @@ class UdpServer {
   UdpServer();
 
   ~UdpServer() {
-    // if (sliding_window_) {
-    //   free(sliding_window_);
-    // }
-
-    // if (packet_statistics_) {
-    //   free(packet_statistics_);
-    // }
-
     close(sockfd_);
     file_.close();
   }

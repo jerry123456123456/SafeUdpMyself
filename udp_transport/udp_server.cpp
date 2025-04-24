@@ -124,14 +124,11 @@ void UdpServer::send() {
       send_packet(start_byte_ + initial_seq_number_, start_byte_);
 
       if (is_slow_start_) {
-        // LOG(INFO) << "Window In SLOW START Window";
         packet_statistics_->slow_start_packet_sent_count_++;
       } else if (is_cong_avd_) {
-        // LOG(INFO) << "Window In CONG AVD Window";
         packet_statistics_->cong_avd_packet_sent_count_++;
       }
 
-      // break
       start_byte_ = start_byte_ + MAX_DATA_SIZE;
       if (start_byte_ > file_length_) {
         LOG(INFO) << "No more data left to be sent";
@@ -142,7 +139,6 @@ void UdpServer::send() {
 
     LOG(INFO) << "SEND END !!!!!";
 
-    // socket listen whith timeout
     FD_ZERO(&rfds);
     FD_SET(sockfd_, &rfds);
 
@@ -154,11 +150,10 @@ void UdpServer::send() {
       res = select(sockfd_ + 1, &rfds, NULL, NULL, &tv);
       if (res == -1) {
         LOG(ERROR) << "Error in select";
-      } else if (res > 0) {  // ACK available event
+      } else if (res > 0) {
         wait_for_ack();
 
         if (cwnd_ >= ssthresh_) {
-          //慢启动---->拥塞避免
           LOG(INFO) << "CHANGE TO CONG AVD";
           is_cong_avd_ = true;
           is_slow_start_ = false;
@@ -177,25 +172,19 @@ void UdpServer::send() {
           break;
         }
       } else {
-        // 拥塞发生--超时重传
         LOG(INFO) << "Timeout occurred SELECT::" << smoothed_timeout_;
-        // LOG(INFO) << "CHANGE TO SLOW START";
         ssthresh_ = cwnd_ / 2;
         if (ssthresh_ < 1) {
           ssthresh_ = 1;
         }
         cwnd_ = 1;
 
-        // 重新开始慢启动
         if (is_fast_recovery_) {
-          // LOG(INFO) << "CHANGE TO SLOW START from FastRecovery start_byte_:"
-          //           << start_byte_;
           is_fast_recovery_ = false;
         }
         is_slow_start_ = true;
         is_cong_avd_ = false;
 
-        // retransmit all unacked segments
         for (int i = sliding_window_->last_acked_packet_ + 1;
              i <= sliding_window_->last_packet_sent_; i++) {
           int retransmit_start_byte = 0;
@@ -263,7 +252,6 @@ void UdpServer::send_packet(int seq_number, int start_byte) {
   }
 
   struct timeval time;
-
   gettimeofday(&time, NULL);
 
   if (sliding_window_->last_packet_sent_ != -1 &&
@@ -279,14 +267,11 @@ void UdpServer::send_packet(int seq_number, int start_byte) {
         break;
       }
     }
-
   } else {
     SlidWinBuffer slidingWindowBuffer;
     slidingWindowBuffer.first_byte_ = start_byte;
     slidingWindowBuffer.data_length_ = dataLength;
     slidingWindowBuffer.seq_num_ = initial_seq_number_ + start_byte;
-    struct timeval time;
-    gettimeofday(&time, NULL);
     slidingWindowBuffer.time_sent_ = time;
     sliding_window_->last_packet_sent_ =
         sliding_window_->AddToBuffer(slidingWindowBuffer);
@@ -308,7 +293,6 @@ void UdpServer::wait_for_ack() {
   DataSegment ack_segment;
   ack_segment.DeserializeToDataSegment(buffer, n);
 
-  // LOG(INFO) << "ACK Received: ack_number " << ack_segment->ack_number_;
   SlidWinBuffer last_packet_acked_buffer =
       sliding_window_
           ->sliding_window_buffers_[sliding_window_->last_acked_packet_];
@@ -316,7 +300,6 @@ void UdpServer::wait_for_ack() {
     if (ack_segment.ack_number_ == sliding_window_->send_base_) {
       LOG(INFO) << "DUP ACK Received: ack_number: " << ack_segment.ack_number_;
       sliding_window_->dup_ack_++;
-      // 快速重传
       if (sliding_window_->dup_ack_ == 3) {
         packet_statistics_->retransmit_count_++;
         LOG(INFO) << "Fast Retransmit seq_number: " << ack_segment.ack_number_;
@@ -327,14 +310,9 @@ void UdpServer::wait_for_ack() {
         }
         ssthresh_ = cwnd_;
         is_fast_recovery_ = true;
-        // LOG(INFO) << "Change to fast Recovery ack_segment->ack_number:"
-        //           << ack_segment->ack_number_;
       }
-
     } else if (ack_segment.ack_number_ > sliding_window_->send_base_) {
       if (is_fast_recovery_) {
-        // LOG(INFO) << "Change to Cong Avoidance from fast recovery recv ack:"
-        //           << ack_segment->ack_number_;
         cwnd_++;
         is_fast_recovery_ = false;
         is_cong_avd_ = true;
@@ -365,12 +343,8 @@ void UdpServer::wait_for_ack() {
       struct timeval endTime;
       gettimeofday(&endTime, NULL);
 
-      // LOG(INFO) << "seq num of last_acked "
-      //           << last_packet_acked_buffer.seq_num_;
       calculate_rtt_and_time(startTime, endTime);
     }
-    // LOG(INFO) << "sliding_window_->lastAckedPacket"
-    //           << sliding_window_->last_acked_packet_;
   }
 }
 
@@ -386,76 +360,86 @@ void UdpServer::calculate_rtt_and_time(struct timeval start_time,
 
   dev_rtt_ = 0.75 * dev_rtt_ + 0.25 * (abs(smoothed_rtt_ - sample_rtt));
   smoothed_timeout_ = smoothed_rtt_ + 4 * dev_rtt_;
-
-  if (smoothed_timeout_ > 1000000) {
-    smoothed_timeout_ = rand() % 30000;
-  }
 }
 
-void UdpServer::retransmit_segment(int index_number) {
-  for (int i = sliding_window_->last_acked_packet_ + 1;
-       i < sliding_window_->last_packet_sent_; i++) {
-    if (sliding_window_->sliding_window_buffers_[i].first_byte_ ==
-        index_number) {
-      struct timeval time;
-      gettimeofday(&time, NULL);
-      sliding_window_->sliding_window_buffers_[i].time_sent_ = time;
-      break;
-    }
-  }
-
-  read_file_and_send(false, index_number, index_number + MAX_DATA_SIZE);
-}
-
-void UdpServer::read_file_and_send(bool fin_flag, int start_byte,
-                                   int end_byte) {
-  int datalength = end_byte - start_byte;
-  if (file_length_ - start_byte < datalength) {
-    datalength = file_length_ - start_byte;
-    fin_flag = true;
-  }
-  char *fileData = reinterpret_cast<char *>(calloc(datalength, sizeof(char)));
-  if (!file_.is_open()) {
-    LOG(ERROR) << "File open failed !!!";
-    return;
-  }
-  file_.seekg(start_byte);
-  file_.read(fileData, datalength);
-
-  DataSegment *data_segment = new DataSegment();
-  data_segment->seq_number_ = start_byte + initial_seq_number_;
-  data_segment->ack_number_ = 0;
-  data_segment->ack_flag_ = false;
-  data_segment->fin_flag_ = fin_flag;
-  data_segment->length_ = datalength;
-  data_segment->data_ = fileData;
-
-  send_data_segment(data_segment);
-  LOG(INFO) << "Packet sent:seq number: " << data_segment->seq_number_;
-
-  free(fileData);
-  free(data_segment);
-}
-
+// 获取客户端请求
 char *UdpServer::GetRequest(int client_sockfd) {
-  char *buffer =
-      reinterpret_cast<char *>(calloc(MAX_PACKET_SIZE, sizeof(char)));
-  struct sockaddr_in client_address;
-  socklen_t addr_size;
-  memset(buffer, 0, MAX_PACKET_SIZE);
-  addr_size = sizeof(client_address);
-  recvfrom(client_sockfd, buffer, MAX_PACKET_SIZE, 0,
-           (struct sockaddr *)&client_address, &addr_size);
-
-  LOG(INFO) << "***Request received is: " << buffer;
-  cli_address_ = client_address;
-  return buffer;
+    static char buffer[MAX_PACKET_SIZE];
+    socklen_t addr_size = sizeof(cli_address_);
+    ssize_t n = recvfrom(client_sockfd, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&cli_address_, &addr_size);
+    if (n < 0) {
+        LOG(ERROR) << "Failed to receive request from client";
+        return nullptr;
+    }
+    buffer[n] = '\0';
+    return buffer;
 }
 
-void UdpServer::send_data_segment(DataSegment *data_segment) {
-  char *datagramChars = data_segment->SerializeToCharArray();
-  sendto(sockfd_, datagramChars, MAX_PACKET_SIZE, 0,
-         (struct sockaddr *)&cli_address_, sizeof(cli_address_));
-  free(datagramChars);
+// 读取文件并发送数据
+void UdpServer::read_file_and_send(bool fin_flag, int start_byte, int end_byte) {
+    file_.seekg(start_byte, std::ios::beg);
+    int data_length = end_byte - start_byte;
+
+    // 创建 chainbuffer
+    buffer_t *chain_buffer = buffer_new(data_length);
+    if (!chain_buffer) {
+        LOG(ERROR) << "Failed to create chain buffer";
+        return;
+    }
+
+    char temp_buffer[MAX_DATA_SIZE];
+    file_.read(temp_buffer, data_length);
+    if (file_.gcount() != data_length) {
+        LOG(ERROR) << "Failed to read data from file";
+        buffer_free(chain_buffer);
+        return;
+    }
+
+    // 将数据添加到 chainbuffer
+    if (buffer_add(chain_buffer, temp_buffer, data_length) != 0) {
+        LOG(ERROR) << "Failed to add data to chain buffer";
+        buffer_free(chain_buffer);
+        return;
+    }
+
+    DataSegment *data_segment = new DataSegment();
+    data_segment->seq_number_ = start_byte + initial_seq_number_;
+    data_segment->ack_number_ = -1;
+    data_segment->ack_flag_ = false;
+    data_segment->fin_flag_ = fin_flag;
+    data_segment->length_ = data_length;
+    data_segment->data_buffer_ = new char[data_length + 1];
+
+    // 从 chainbuffer 中读取数据到 data_segment
+    if (buffer_remove(chain_buffer, data_segment->data_buffer_, data_length) != 0) {
+        LOG(ERROR) << "Failed to remove data from chain buffer";
+        delete[] data_segment->data_buffer_;
+        delete data_segment;
+        buffer_free(chain_buffer);
+        return;
+    }
+    data_segment->data_buffer_[data_length] = '\0';
+
+    send_data_segment(data_segment);
+
+    delete[] data_segment->data_buffer_;
+    delete data_segment;
+    buffer_free(chain_buffer);
 }
-}  // namespace safe_udp
+
+// 重传指定段
+void UdpServer::retransmit_segment(int index_number) {
+    if (index_number < 0 || index_number >= static_cast<int>(sliding_window_->sliding_window_buffers_.size())) {
+        LOG(ERROR) << "Invalid index number for retransmission";
+        return;
+    }
+
+    SlidWinBuffer &buffer = sliding_window_->sliding_window_buffers_[index_number];
+    int start_byte = buffer.first_byte_;
+    int end_byte = start_byte + buffer.data_length_;
+    bool fin_flag = (end_byte >= file_length_);
+
+    read_file_and_send(fin_flag, start_byte, end_byte);
+}
+
+}

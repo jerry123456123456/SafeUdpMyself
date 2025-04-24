@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "data_segment.h"
+#include "chain_buffer.h"  // 引入 chainbuffer 头文件
 
 namespace safe_udp {
 constexpr char CLIENT_FILE_PATH[] = "/work/files/client_files/";
@@ -16,7 +17,15 @@ constexpr char CLIENT_FILE_PATH[] = "/work/files/client_files/";
 class UdpClient {
  public:
   UdpClient();
-  ~UdpClient() { close(sockfd_); }
+  ~UdpClient() { 
+    close(sockfd_); 
+    // 释放所有 chainbuffer
+    for (auto& segment : data_segments_) {
+      if (segment.data_buffer_ != nullptr) {
+        buffer_free(segment.data_buffer_);
+      }
+    }
+  }
 
   void SendFileRequest(const std::string& file_name);
 

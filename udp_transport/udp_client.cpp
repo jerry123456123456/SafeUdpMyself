@@ -105,14 +105,20 @@ void UdpClient::SendFileRequest(const std::string &file_name) {
     for (int i = last_in_order_packet_ + 1; i <= last_packet_received_; i++) {
       if (data_segments_[i].seq_number_ != -1) {
         if (file.is_open()) {
-          file << data_segments_[i].data_;
+          // 从 chainbuffer 中读取数据并写入文件
+          uint32_t buffer_len = buffer_len(data_segments_[i].data_buffer_);
+          char* buffer_data = (char*)malloc(buffer_len);
+          if (buffer_data != nullptr) {
+            buffer_remove(data_segments_[i].data_buffer_, buffer_data, buffer_len);
+            file.write(buffer_data, buffer_len);
+            free(buffer_data);
+          }
           last_in_order_packet_ = i;
         }
       } else {
         break;
       }
     }
-
 
     // 如果已经接收到 fin_flag_ 且所有数据包都处理完毕，则跳出循环
     if (fin_flag_received_ && last_in_order_packet_ == last_packet_received_) {
@@ -151,6 +157,7 @@ void UdpClient::send_ack(int ackNumber) {
   }
 
   free(data);
+  free(ack_segment);
 }
 
 void UdpClient::CreateSocketAndServerConnection(
